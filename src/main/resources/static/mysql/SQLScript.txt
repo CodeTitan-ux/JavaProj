@@ -1,0 +1,466 @@
+=====================================================
+BANK APPLICATION – DATABASE SETUP GUIDE
+Database: bankappdb
+Version: 2.0 (Updated January 2026)
+=====================================================
+
+This comprehensive guide covers:
+1. Database creation and initialization
+2. Table structures with relationships
+3. Data insertion best practices
+4. Common queries and operations
+5. Troubleshooting and error fixes
+6. Transaction type management
+
+=====================================================
+SECTION 1: DATABASE CREATION
+=====================================================
+
+-- View existing databases
+SHOW DATABASES;
+
+-- Create the bank application database
+CREATE DATABASE bankappdb;
+
+-- Switch to the new database
+USE bankappdb;
+
+-- Verify you're using the correct database
+SELECT DATABASE();
+
+=====================================================
+SECTION 2: TABLE CREATION
+=====================================================
+
+-----------------------------------------------------
+2.1 USERS TABLE
+-----------------------------------------------------
+-- Purpose: Stores user authentication credentials
+-- Security: Passwords MUST be BCrypt encrypted
+-- Spring Security: role field is required
+
+CREATE TABLE users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL
+);
+
+-- Verify table structure
+DESCRIBE users;
+
+-----------------------------------------------------
+2.2 ACCOUNTS TABLE
+-----------------------------------------------------
+-- Purpose: Stores bank account information
+-- Relationship: Each account links to one user
+
+CREATE TABLE accounts (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    account_number VARCHAR(50),
+    balance DECIMAL(10,2) DEFAULT 0,
+    account_type VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Verify table structure
+DESCRIBE accounts;
+
+-----------------------------------------------------
+2.3 TRANSACTIONS TABLE
+-----------------------------------------------------
+-- CRITICAL: Table name is 'transactions' (plural)
+-- Common mistake: Using 'transaction' causes errors
+
+CREATE TABLE transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    account_id BIGINT NOT NULL,
+    transaction_type VARCHAR(20),
+    amount DECIMAL(10,2),
+    description VARCHAR(255),
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+-- Verify table structure
+DESCRIBE transactions;
+
+-- View all tables in database
+SHOW TABLES;
+
+=====================================================
+SECTION 3: DATA INSERTION
+=====================================================
+
+-----------------------------------------------------
+3.1 INSERT USERS
+-----------------------------------------------------
+-- IMPORTANT: Passwords shown here are BCrypt hashes
+-- In production: Application handles password encryption
+-- For testing: Use BCrypt online tool to generate hashes
+
+-- Example users (use your own BCrypt hashes)
+INSERT INTO users (username, password, role)
+VALUES
+('user', '$2a$10$qrlyYnyBTasyWn0DG66s.eRzp5N1xNThedA.1mQqWdQosy2uXQquy', 'USER'),
+('admin', '$2a$10$RSB74i/MfNy/kE/zgYGhROBweIyZZhnBYmNqmdWIsqfCMCCDNLzMa', 'USER');
+
+-- Verify insertion
+SELECT id, username, role FROM users;
+
+-- ROLE VALUES:
+-- ✅ Correct: 'USER' (recommended for consistency)
+-- ✅ Also works: 'ROLE_USER' (Spring Security format)
+-- ❌ Wrong: NULL, empty string, or other values
+
+-----------------------------------------------------
+3.2 INSERT ACCOUNTS
+-----------------------------------------------------
+-- Link accounts to existing users using user_id
+
+INSERT INTO accounts (user_id, account_number, balance, account_type)
+VALUES
+(3, 'ACC100001', 1800.00, 'SAVINGS'),
+(10, 'GC-1768417213895', 1500.00, 'SAVINGS');
+
+-- Verify insertion
+SELECT * FROM accounts;
+
+-- Check account-user relationships
+SELECT u.username, a.account_number, a.balance, a.account_type
+FROM users u
+JOIN accounts a ON u.id = a.user_id;
+
+-----------------------------------------------------
+3.3 INSERT TRANSACTIONS
+-----------------------------------------------------
+-- Transaction types: DEPOSIT, WITHDRAW, TRANSFER_IN, TRANSFER_OUT
+
+INSERT INTO transactions (account_id, transaction_type, amount, description)
+VALUES
+(2, 'DEPOSIT', 1000.00, NULL),
+(2, 'WITHDRAW', 500.00, NULL),
+(7, 'TRANSFER_OUT', 200.00, 'Transfer sent to GC-1768408110757'),
+(8, 'TRANSFER_IN', 200.00, 'Transfer received from GC-1768417213895');
+
+-- Verify insertion
+SELECT * FROM transactions;
+
+=====================================================
+SECTION 4: COMMON QUERIES
+=====================================================
+
+-----------------------------------------------------
+4.1 VIEW ALL DATA
+-----------------------------------------------------
+
+-- View all users
+SELECT * FROM users;
+
+-- View all accounts
+SELECT * FROM accounts;
+
+-- View all transactions
+SELECT * FROM transactions;
+
+-----------------------------------------------------
+4.2 FILTER QUERIES
+-----------------------------------------------------
+
+-- Get transactions for specific account
+SELECT * FROM transactions WHERE account_id = 3;
+
+-- Get recent transactions (last 5)
+SELECT * 
+FROM transactions 
+WHERE account_id = 3 
+ORDER BY transaction_date DESC 
+LIMIT 5;
+
+-- Get transactions by type
+SELECT * FROM transactions 
+WHERE transaction_type = 'DEPOSIT';
+
+-- Search for transfer descriptions
+SELECT * FROM transactions 
+WHERE description LIKE '%sent%';
+
+-----------------------------------------------------
+4.3 TRANSACTION SUMMARY & REPORTING
+-----------------------------------------------------
+
+-- Count transactions by account and type
+SELECT account_id, transaction_type, COUNT(*) as count
+FROM transactions
+GROUP BY account_id, transaction_type;
+
+-- Get all transaction types in use
+SELECT DISTINCT transaction_type 
+FROM transactions;
+
+-- View recent transactions with details
+SELECT account_id, transaction_type, amount, description
+FROM transactions
+ORDER BY transaction_date DESC;
+
+-- Total transaction amounts by type
+SELECT transaction_type, SUM(amount) as total_amount
+FROM transactions
+GROUP BY transaction_type;
+
+=====================================================
+SECTION 5: UPDATE OPERATIONS
+=====================================================
+
+-----------------------------------------------------
+5.1 UPDATE USER ROLE
+-----------------------------------------------------
+-- Fix missing or incorrect roles (fixes 403 Forbidden)
+
+UPDATE users
+SET role = 'USER'
+WHERE username = 'user2';
+
+-- Verify update
+SELECT id, username, role FROM users;
+
+-----------------------------------------------------
+5.2 UPDATE TRANSACTION TYPES
+-----------------------------------------------------
+-- Separate TRANSFER into IN/OUT for clarity
+
+-- Update outgoing transfers
+UPDATE transactions
+SET transaction_type = 'TRANSFER_OUT'
+WHERE transaction_type = 'TRANSFER'
+AND description LIKE '%sent%';
+
+-- Update incoming transfers
+UPDATE transactions
+SET transaction_type = 'TRANSFER_IN'
+WHERE transaction_type = 'TRANSFER'
+AND description LIKE '%received%';
+
+-- Update remaining generic transfers to OUT
+UPDATE transactions
+SET transaction_type = 'TRANSFER_OUT'
+WHERE transaction_type = 'TRANSFER';
+
+-- Verify all transaction types
+SELECT DISTINCT transaction_type FROM transactions;
+
+-----------------------------------------------------
+5.3 UPDATE ACCOUNT BALANCE
+-----------------------------------------------------
+
+UPDATE accounts
+SET balance = 2000.00
+WHERE account_number = 'ACC100001';
+
+=====================================================
+SECTION 6: DELETE OPERATIONS
+=====================================================
+
+-----------------------------------------------------
+6.1 DELETE USER (CORRECT SYNTAX)
+-----------------------------------------------------
+
+-- ❌ WRONG SYNTAX:
+-- drop where username = "user2";
+-- drop from users where username = "user2";
+
+-- ✅ CORRECT SYNTAX:
+DELETE FROM users WHERE username = 'user2';
+
+-- BEST PRACTICE: Always SELECT before DELETE
+SELECT * FROM users WHERE username = 'user2';
+-- If correct, then:
+DELETE FROM users WHERE username = 'user2';
+
+-- Verify deletion
+SELECT * FROM users;
+
+-----------------------------------------------------
+6.2 DELETE TRANSACTIONS
+-----------------------------------------------------
+
+DELETE FROM transactions WHERE id = 5;
+
+DELETE FROM transactions 
+WHERE account_id = 3 
+AND transaction_type = 'DEPOSIT';
+
+=====================================================
+SECTION 7: COMMON ERRORS & SOLUTIONS
+=====================================================
+
+-----------------------------------------------------
+ERROR 1064: Syntax Error
+-----------------------------------------------------
+SYMPTOM: "You have an error in your SQL syntax"
+
+CAUSES:
+1. Using placeholder text like <your_account_id>
+   ❌ SELECT * FROM transactions WHERE account_id = <your_account_id>;
+   ✅ SELECT * FROM transactions WHERE account_id = 3;
+
+2. Wrong DELETE syntax
+   ❌ drop where username = "user2";
+   ✅ DELETE FROM users WHERE username = 'user2';
+
+3. Pasting application logs into MySQL
+   ❌ Accidentally pasting Spring Boot debug logs
+   ✅ Only paste SQL commands
+
+-----------------------------------------------------
+ERROR 1146: Table Does Not Exist
+-----------------------------------------------------
+SYMPTOM: "Table 'bankappdb.transaction' doesn't exist"
+
+CAUSES:
+1. Wrong table name (missing 's')
+   ❌ SELECT * FROM transaction;
+   ✅ SELECT * FROM transactions;
+
+2. Typo in table name
+   ❌ select * from acounts;
+   ✅ select * from accounts;
+
+SOLUTION:
+-- Verify table names
+SHOW TABLES;
+
+-----------------------------------------------------
+403 FORBIDDEN ERROR (Application Level)
+-----------------------------------------------------
+SYMPTOM: Cannot login, access denied
+
+CAUSES:
+1. Missing role in users table
+2. NULL role value
+3. Incorrect role format
+
+SOLUTION:
+-- Check user roles
+SELECT id, username, role FROM users;
+
+-- Fix missing role
+UPDATE users SET role = 'USER' WHERE role IS NULL;
+
+-- Verify all users have roles
+SELECT username, role FROM users WHERE role IS NULL;
+
+=====================================================
+SECTION 8: BEST PRACTICES
+=====================================================
+
+✅ DO:
+- Always use 'transactions' (plural) for table name
+- Use BCrypt for password encryption
+- Set role to 'USER' for all users
+- Use SELECT before DELETE operations
+- Use proper transaction types: DEPOSIT, WITHDRAW, TRANSFER_IN, TRANSFER_OUT
+- Add descriptions to transfers for tracking
+- Use DECIMAL for monetary values
+
+❌ DON'T:
+- Don't use plain text passwords
+- Don't leave role field NULL or empty
+- Don't use placeholder text in actual queries
+- Don't use 'transaction' (singular) as table name
+- Don't forget FOREIGN KEY constraints
+- Don't use generic 'TRANSFER' type (split into IN/OUT)
+
+=====================================================
+SECTION 9: COMPLETE EXAMPLE WORKFLOW
+=====================================================
+
+-- 1. Create and use database
+CREATE DATABASE bankappdb;
+USE bankappdb;
+
+-- 2. Create tables
+CREATE TABLE users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE accounts (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    account_number VARCHAR(50),
+    balance DECIMAL(10,2) DEFAULT 0,
+    account_type VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    account_id BIGINT NOT NULL,
+    transaction_type VARCHAR(20),
+    amount DECIMAL(10,2),
+    description VARCHAR(255),
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+-- 3. Insert sample data
+INSERT INTO users (username, password, role) VALUES
+('user', '$2a$10$qrlyYnyBTasyWn0DG66s.eRzp5N1xNThedA.1mQqWdQosy2uXQquy', 'USER');
+
+INSERT INTO accounts (user_id, account_number, balance, account_type) VALUES
+(1, 'ACC100001', 1000.00, 'SAVINGS');
+
+INSERT INTO transactions (account_id, transaction_type, amount) VALUES
+(1, 'DEPOSIT', 1000.00);
+
+-- 4. Verify setup
+SELECT * FROM users;
+SELECT * FROM accounts;
+SELECT * FROM transactions;
+
+=====================================================
+SECTION 10: QUICK REFERENCE
+=====================================================
+
+-- Table Names (REMEMBER THESE!)
+users          ✅ Correct
+accounts       ✅ Correct
+transactions   ✅ Correct (PLURAL!)
+transaction    ❌ Wrong (will cause ERROR 1146)
+
+-- Transaction Types
+DEPOSIT        - Money added to account
+WITHDRAW       - Money removed from account
+TRANSFER_OUT   - Money sent to another account
+TRANSFER_IN    - Money received from another account
+
+-- User Roles
+USER           ✅ Recommended
+ROLE_USER      ✅ Also works
+NULL           ❌ Causes 403 error
+
+-- Common Commands
+SHOW DATABASES;
+USE bankappdb;
+SHOW TABLES;
+DESCRIBE tablename;
+SELECT * FROM tablename;
+
+=====================================================
+END OF SETUP GUIDE
+=====================================================
+
+For application integration:
+- Let Spring Boot handle user registration
+- Application auto-generates account numbers
+- Transaction descriptions auto-populate for transfers
+- Balance updates handled by application logic
+
+This database is now ready for your Spring Boot application!
+=====================================================
