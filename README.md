@@ -310,3 +310,29 @@ This project is for **educational and learning purposes**.
 You are free to modify and extend it.
 
 ---
+
+##  Screenshots 
+
+LOGIN : 
+
+<img width="1919" height="1013" alt="Screenshot 2026-01-17 210225" src="https://github.com/user-attachments/assets/1db86ccb-7595-4e08-897d-e8968bdb384a" />
+
+
+REGISTER : 
+
+<img width="1919" height="1016" alt="Screenshot 2026-01-17 210220" src="https://github.com/user-attachments/assets/b8dc66ab-3a7b-4d70-8ab8-ac3201f30a53" />
+
+DASHBOARD :
+
+<img width="1919" height="799" alt="Screenshot 2026-01-17 210025" src="https://github.com/user-attachments/assets/f99221ae-530a-4bc0-a7ae-f54b709a11e4" />
+
+<img width="1915" height="727" alt="Screenshot 2026-01-17 210041" src="https://github.com/user-attachments/assets/0ed14bba-8f33-4b4e-add4-2bf457cbe0d1" />
+
+<img width="1888" height="685" alt="Screenshot 2026-01-17 210046" src="https://github.com/user-attachments/assets/93d0e629-575e-453c-b45b-1a587be9e6c3" />
+
+
+TRANSACTION : 
+
+<img width="1919" height="1015" alt="Screenshot 2026-01-17 210012" src="https://github.com/user-attachments/assets/5e64bb4e-a4bf-4c51-af74-2bf57ca08fc9" />
+
+---
