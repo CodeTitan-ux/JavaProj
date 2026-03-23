@@ -2,6 +2,8 @@
 
 # 🏦 Nova Bank – Spring Boot Banking Application
 
+# Live Demo : https://javaproj-fgmk.onrender.com
+
 Nova Bank is a **full-stack banking web application** built using **Spring Boot, Spring Security, JPA/Hibernate, Thymeleaf, MySQL, and Bootstrap**.
 It simulates real-world banking operations such as **user registration, authentication, deposits, withdrawals, fund transfers, and transaction history tracking**.
 
